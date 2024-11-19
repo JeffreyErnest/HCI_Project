@@ -100,6 +100,9 @@ with mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence
 
         # Convert to RGB (MediaPipe uses RGB, OpenCV uses BGR)
         image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+        # Flip it for display
+        flipped_image = cv2.flip(image, 1)
         
         # Perform face mesh detection
         results = face_mesh.process(image_rgb)
@@ -157,8 +160,8 @@ with mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence
         # Update Pygame display
         pygame.display.update()
 
-        # Show the webcam feed in a window (optional)
-        cv2.imshow("MediaPipe Face", image)
+        # Show the flipped webcam feed in a window
+        cv2.imshow("MediaPipe Face", flipped_image)
 
         # Exit on ESC
         if cv2.waitKey(1) & 0xFF == 27:
