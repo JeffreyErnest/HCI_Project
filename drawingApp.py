@@ -64,6 +64,7 @@ current_color = colors[current_color_index]
 
 # MediaPipe setup
 mp_face_mesh = mp.solutions.face_mesh
+mp_hands = mp.solutions.hands  # Add hands module
 mp_drawing = mp.solutions.drawing_utils
 
 # Global variables
@@ -72,6 +73,10 @@ previous_nose_position = None  # Track previous nose position
 drawing_segments = []  # Store all the drawing segments, each with color
 mouth_open = False  # Track the mouth open state
 last_mouth_state = False  # To track the transition of mouth open/close
+hand_position = None  # Add hand position tracking
+previous_hand_position = None
+drawing_mode = "nose"  # Add mode switching
+drawing_active = False  # Add a new global variable to track drawing state
 
 # Helper function to check if the mouth is open
 def is_mouth_open(landmarks):
@@ -86,86 +91,142 @@ def is_mouth_open(landmarks):
     mouth_threshold = 0.03  # Adjust this threshold based on testing
     return mouth_distance > mouth_threshold
 
-# Initialize MediaPipe Face Mesh with the task file
+# Initialize both MediaPipe modules
 with mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence=0.5) as face_mesh:
+    with mp_hands.Hands(min_detection_confidence=0.5, min_tracking_confidence=0.5) as hands:
+        # Start webcam capture
+        cap = cv2.VideoCapture(0)
 
-    # Start webcam capture
-    cap = cv2.VideoCapture(0)
+        while cap.isOpened():
+            success, image = cap.read()
+            if not success:
+                print("Ignoring empty camera frame.")
+                continue
 
-    while cap.isOpened():
-        success, image = cap.read()
-        if not success:
-            print("Ignoring empty camera frame.")
-            continue
+            # Convert to RGB (MediaPipe uses RGB, OpenCV uses BGR)
+            image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-        # Convert to RGB (MediaPipe uses RGB, OpenCV uses BGR)
-        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
-        # Flip it for display
-        flipped_image = cv2.flip(image, 1)
-        
-        # Perform face mesh detection
-        results = face_mesh.process(image_rgb)
-
-        # Update Pygame screen
-        screen.fill(WHITE)  # Clear screen with white background
-        
-        if results.multi_face_landmarks:
-            for face_landmarks in results.multi_face_landmarks:
-                # Get the position of the nose (tip of the nose is landmark index 1)
-                nose_landmark = face_landmarks.landmark[1]
+            # Flip it for display
+            flipped_image = cv2.flip(image, 1)
             
-                # Flip the x-coordinate so that the drawing mirrors your motion irl
-                nose_position = (WIDTH - int(nose_landmark.x * WIDTH), int(nose_landmark.y * HEIGHT))
+            # Process both face and hands
+            results_face = face_mesh.process(image_rgb)
+            results_hands = hands.process(image_rgb)
 
-                # Only start drawing if the nose moves a significant amount
-                if previous_nose_position and nose_position != previous_nose_position:
-                    drawing_segments.append((previous_nose_position, nose_position, current_color))
+            # Update Pygame screen
+            screen.fill(WHITE)  # Clear screen with white background
+            
+            # Handle face detection for color changing
+            if results_face.multi_face_landmarks:
+                for face_landmarks in results_face.multi_face_landmarks:
+                    # Check mouth state for color changing
+                    mouth_open = is_mouth_open(face_landmarks.landmark)
+                    
+                    if mouth_open and not last_mouth_state:
+                        current_color_index = (current_color_index + 1) % len(colors)
+                        current_color = colors[current_color_index]
+                    
+                    last_mouth_state = mouth_open
 
-                previous_nose_position = nose_position  # Update the previous position
+            # Debug information
+            if drawing_mode == "nose":
+                if results_face.multi_face_landmarks:
+                    print("Face detected")
+                else:
+                    print("No face detected")
+            else:  # hand mode
+                if results_hands.multi_hand_landmarks:
+                    print("Hand detected")
+                else:
+                    print("No hand detected")
+            
+            print(f"Drawing active: {drawing_active}")
 
-                # Check if the mouth is open or closed
-                mouth_open = is_mouth_open(face_landmarks.landmark)
+            # Move event handling BEFORE the drawing code and remove duplicate event loop
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    cap.release()
+                    pygame.quit()
+                    exit()
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_RETURN:
+                        drawing_mode = "hand" if drawing_mode == "nose" else "nose"
+                        print(f"Switched to {drawing_mode} mode")
+                        # Reset positions when switching modes
+                        previous_hand_position = None
+                        previous_nose_position = None
+                    elif event.key == pygame.K_SPACE:
+                        drawing_active = True
+                        print("Space pressed - Drawing activated")
+                elif event.type == pygame.KEYUP and event.key == pygame.K_SPACE:
+                    drawing_active = False
+                    print("Space released - Drawing deactivated")
+                    # Reset positions when stopping drawing
+                    previous_hand_position = None
+                    previous_nose_position = None
 
-                # Detect transition from closed to open mouth (for color cycling)
-                if mouth_open and not last_mouth_state:
-                    # Cycle to the next color
-                    current_color_index = (current_color_index + 1) % len(colors)
-                    current_color = colors[current_color_index]
+            # Draw all existing segments
+            for start_point, end_point, color in drawing_segments:
+                pygame.draw.line(screen, color, start_point, end_point, 2)
+
+            # Handle nose mode drawing
+            if drawing_mode == "nose" and results_face.multi_face_landmarks:
+                for face_landmarks in results_face.multi_face_landmarks:
+                    nose_landmark = face_landmarks.landmark[1]
+                    nose_position = (WIDTH - int(nose_landmark.x * WIDTH), int(nose_landmark.y * HEIGHT))
+                    
+                    # Always draw cursor dot
+                    pygame.draw.circle(screen, current_color, nose_position, 5)
+                    
+                    # Only add line segments when drawing is active
+                    if drawing_active:
+                        if previous_nose_position:
+                            drawing_segments.append((previous_nose_position, nose_position, current_color))
+                        previous_nose_position = nose_position
+                    else:
+                        previous_nose_position = None
+
+            # Handle hand mode drawing
+            if drawing_mode == "hand" and results_hands.multi_hand_landmarks:
+                hand_landmarks = results_hands.multi_hand_landmarks[0]
+                index_finger = hand_landmarks.landmark[8]
+                hand_position = (WIDTH - int(index_finger.x * WIDTH), int(index_finger.y * HEIGHT))
                 
-                last_mouth_state = mouth_open  # Update last mouth state
+                # Always draw cursor dot
+                pygame.draw.circle(screen, current_color, hand_position, 5)
+                
+                # Only add line segments when drawing is active
+                if drawing_active:
+                    if previous_hand_position:
+                        drawing_segments.append((previous_hand_position, hand_position, current_color))
+                    previous_hand_position = hand_position
+                else:
+                    previous_hand_position = None
 
-        # Draw all the segments with their respective colors
-        for start_point, end_point, color in drawing_segments:
-            pygame.draw.line(screen, color, start_point, end_point, 2)
+            # Display the current color on the screen
+            font = pygame.font.Font(None, 36)
+            color_name = ["Red", "Green", "Blue", "Yellow", "Cyan", "Magenta", "Orange", "Purple", 
+                          "Deep Pink", "Tomato", "Dark Blue", "Forest Green", "Violet", "Indigo", 
+                          "Hot Pink", "Spring Green", "Red-Orange", "Khaki", "Deep Sky Blue", "Crimson", 
+                          "Bisque", "Steel Blue", "Navajo White", "Salmon", "Gold", "Dark Orange", 
+                          "Goldenrod", "Light Pink", "Medium Aquamarine", "Lavender Blush", "Medium Orchid", 
+                          "Ivory", "Cornsilk", "Light Coral", "Gray", "Black", "White"][current_color_index]  # Get color name for display
+            color_text = font.render(f"Current Color: {color_name}", True, (0, 0, 0))  # Black text
+            screen.blit(color_text, (10, 10))
 
-        # Display the current color on the screen
-        font = pygame.font.Font(None, 36)
-        color_name = ["Red", "Green", "Blue", "Yellow", "Cyan", "Magenta", "Orange", "Purple", 
-                      "Deep Pink", "Tomato", "Dark Blue", "Forest Green", "Violet", "Indigo", 
-                      "Hot Pink", "Spring Green", "Red-Orange", "Khaki", "Deep Sky Blue", "Crimson", 
-                      "Bisque", "Steel Blue", "Navajo White", "Salmon", "Gold", "Dark Orange", 
-                      "Goldenrod", "Light Pink", "Medium Aquamarine", "Lavender Blush", "Medium Orchid", 
-                      "Ivory", "Cornsilk", "Light Coral", "Gray", "Black", "White"][current_color_index]  # Get color name for display
-        color_text = font.render(f"Current Color: {color_name}", True, (0, 0, 0))  # Black text
-        screen.blit(color_text, (10, 10))
+            # Update mode display
+            mode_text = font.render(f"Mode: {drawing_mode.capitalize()} Drawing", True, (0, 0, 0))
+            screen.blit(mode_text, (10, 50))
 
-        # Check for user quit (closing window)
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                cap.release()
-                pygame.quit()
-                exit()
+            # Update Pygame display
+            pygame.display.update()
 
-        # Update Pygame display
-        pygame.display.update()
+            # Show the flipped webcam feed in a window
+            cv2.imshow("MediaPipe Face", flipped_image)
 
-        # Show the flipped webcam feed in a window
-        cv2.imshow("MediaPipe Face", flipped_image)
+            # Exit on ESC
+            if cv2.waitKey(5) & 0xFF == 27:
+                break
 
-        # Exit on ESC
-        if cv2.waitKey(1) & 0xFF == 27:
-            break
-
-    cap.release()
-    pygame.quit()
+        cap.release()
+        pygame.quit()

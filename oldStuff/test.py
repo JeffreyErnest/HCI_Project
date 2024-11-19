@@ -3,6 +3,10 @@ import mediapipe as mp
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 mp_holistic = mp.solutions.holistic
+import pyautogui
+import numpy as np
+# Set pyautogui to work without fail-safes
+pyautogui.FAILSAFE = False
 
 # For static images:
 IMAGE_FILES = []
@@ -54,6 +58,9 @@ with mp_holistic.Holistic(
 
 # For webcam input:
 cap = cv2.VideoCapture(0)
+# Get screen size
+screen_width, screen_height = pyautogui.size()
+
 with mp_holistic.Holistic(
     min_detection_confidence=0.5,
     min_tracking_confidence=0.5) as holistic:
@@ -61,7 +68,6 @@ with mp_holistic.Holistic(
     success, image = cap.read()
     if not success:
       print("Ignoring empty camera frame.")
-      # If loading a video, use 'break' instead of 'continue'.
       continue
 
     # To improve performance, optionally mark the image as not writeable to
@@ -69,6 +75,19 @@ with mp_holistic.Holistic(
     image.flags.writeable = False
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     results = holistic.process(image)
+
+    # Add hand control for mouse
+    if results.right_hand_landmarks:
+      # Get index finger tip coordinates (landmark 8)
+      hand_landmark = results.right_hand_landmarks.landmark[8]
+      
+      # Convert normalized coordinates to screen coordinates
+      # Invert the x-coordinate by subtracting from screen width
+      mouse_x = screen_width - int(hand_landmark.x * screen_width)
+      mouse_y = int(hand_landmark.y * screen_height)
+      
+      # Smooth mouse movement
+      pyautogui.moveTo(mouse_x, mouse_y, duration=0.1)
 
     # Draw landmark annotation on the image.
     image.flags.writeable = True
