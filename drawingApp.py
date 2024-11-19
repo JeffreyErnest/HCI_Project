@@ -1,3 +1,5 @@
+#pip install pygame
+
 import cv2
 import mediapipe as mp
 import pygame
@@ -109,7 +111,9 @@ with mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence
             for face_landmarks in results.multi_face_landmarks:
                 # Get the position of the nose (tip of the nose is landmark index 1)
                 nose_landmark = face_landmarks.landmark[1]
-                nose_position = (int(nose_landmark.x * WIDTH), int(nose_landmark.y * HEIGHT))
+            
+                # Flip the x-coordinate so that the drawing mirrors your motion irl
+                nose_position = (WIDTH - int(nose_landmark.x * WIDTH), int(nose_landmark.y * HEIGHT))
 
                 # Only start drawing if the nose moves a significant amount
                 if previous_nose_position and nose_position != previous_nose_position:
