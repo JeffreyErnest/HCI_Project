@@ -14,6 +14,8 @@ pygame.display.set_caption("Draw with Nose")
 
 # Colors (Expanded Palette)
 WHITE = (255, 255, 255)  # White color
+GREY = (200, 200, 200)
+BLACK = (0, 0, 0)
 
 colors = [
     (255, 0, 0),           # Red
@@ -58,6 +60,8 @@ colors = [
     (0, 0, 0),             # Black
     (255, 255, 255)        # White
 ]
+brush_sizes = [2, 5, 10, 15]
+selected_option = None
 
 current_color_index = 0  # Start with the first color (Red)
 current_color = colors[current_color_index]
@@ -72,6 +76,19 @@ previous_nose_position = None  # Track previous nose position
 drawing_segments = []  # Store all the drawing segments, each with color
 mouth_open = False  # Track the mouth open state
 last_mouth_state = False  # To track the transition of mouth open/close
+canChange = True
+lastTime = 0
+dropdown_open = False
+
+dropdown_rect = pygame.Rect(10, 10, 150, 40)
+button_rect = pygame.Rect(450, 50, 50, 50)
+color_box_size = 30
+dropdown_height = len(colors) * color_box_size + len(brush_sizes) * color_box_size
+drawing_segments = []
+
+MAX_ITEMS_PER_ROW = 10  # Max items per row
+ITEM_SPACING = 40      # Space between items
+ITEM_SIZE = 30 
 
 # Helper function to check if the mouth is open
 def is_mouth_open(landmarks):
@@ -91,6 +108,7 @@ with mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence
 
     # Start webcam capture
     cap = cv2.VideoCapture(0)
+    current_color = colors[current_color_index]
 
     while cap.isOpened():
         success, image = cap.read()
@@ -118,8 +136,9 @@ with mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence
                 # Flip the x-coordinate so that the drawing mirrors your motion irl
                 nose_position = (WIDTH - int(nose_landmark.x * WIDTH), int(nose_landmark.y * HEIGHT))
 
+                
                 # Only start drawing if the nose moves a significant amount
-                if previous_nose_position and nose_position != previous_nose_position:
+                if not dropdown_open and previous_nose_position and nose_position != previous_nose_position:
                     drawing_segments.append((previous_nose_position, nose_position, current_color))
 
                 previous_nose_position = nose_position  # Update the previous position
@@ -127,28 +146,77 @@ with mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence
                 # Check if the mouth is open or closed
                 mouth_open = is_mouth_open(face_landmarks.landmark)
 
+                if not canChange:
+                    currTime = time.time()
+                    if currTime - lastTime >= 1:
+                        canChange = True
+                    #checks if its been 1 second since turning false
+                        #Change to tru if it has been
+
                 # Detect transition from closed to open mouth (for color cycling)
-                if mouth_open and not last_mouth_state:
-                    # Cycle to the next color
-                    current_color_index = (current_color_index + 1) % len(colors)
-                    current_color = colors[current_color_index]
-                
+                if mouth_open and canChange and not last_mouth_state:
+                    dropdown_open = not dropdown_open
+                    canChange = False
+                    lastTime = time.time()
+
+                # Detect transition from closed to open mouth (for color cycling)
+                # if mouth_open and not last_mouth_state:
+                #     # Cycle to the next color
+                #     current_color_index = (current_color_index + 1) % len(colors)
+                #     current_color = colors[current_color_index]
+                if dropdown_open:
+                    pygame.draw.rect(screen, GREY, dropdown_rect)
+
+                    # Draw color swatches
+                    for i, color in enumerate(colors):
+                        # Calculate row and column for this item
+                        row = i // MAX_ITEMS_PER_ROW
+                        col = i % MAX_ITEMS_PER_ROW
+
+                        color_rect = pygame.Rect(
+                            dropdown_rect.x + col * ITEM_SPACING + 10,
+                            dropdown_rect.y + row * ITEM_SPACING + 10,
+                            ITEM_SIZE, ITEM_SIZE
+                        )
+                        pygame.draw.rect(screen, color, color_rect)
+                        pygame.draw.rect(screen, BLACK, color_rect, 2)
+
+                    # Calculate offset for brush sizes (below color swatches)
+                    num_color_rows = (len(colors) + MAX_ITEMS_PER_ROW - 1) // MAX_ITEMS_PER_ROW
+                    brush_offset_y = dropdown_rect.y + num_color_rows * ITEM_SPACING + 10
+
+                    # Draw brush size options
+                    for i, size in enumerate(brush_sizes):
+                        size_rect = pygame.Rect(
+                            dropdown_rect.x + 10, 
+                            dropdown_rect.y + (len(colors) * 30) + (i * 30) + 10, 
+                            dropdown_rect.width - 20, 30
+                        )
+                        pygame.draw.rect(screen, WHITE, size_rect)
+                        size_text = font.render(f"Size {size}", True, BLACK)
+                        screen.blit(size_text, (size_rect.x + 5, size_rect.y + 5))
+                    
                 last_mouth_state = mouth_open  # Update last mouth state
+
+
+                if nose_position:
+                    pygame.draw.circle(screen, BLACK, nose_position, 5)
 
         # Draw all the segments with their respective colors
         for start_point, end_point, color in drawing_segments:
             pygame.draw.line(screen, color, start_point, end_point, 2)
 
         # Display the current color on the screen
-        font = pygame.font.Font(None, 36)
-        color_name = ["Red", "Green", "Blue", "Yellow", "Cyan", "Magenta", "Orange", "Purple", 
-                      "Deep Pink", "Tomato", "Dark Blue", "Forest Green", "Violet", "Indigo", 
-                      "Hot Pink", "Spring Green", "Red-Orange", "Khaki", "Deep Sky Blue", "Crimson", 
-                      "Bisque", "Steel Blue", "Navajo White", "Salmon", "Gold", "Dark Orange", 
-                      "Goldenrod", "Light Pink", "Medium Aquamarine", "Lavender Blush", "Medium Orchid", 
-                      "Ivory", "Cornsilk", "Light Coral", "Gray", "Black", "White"][current_color_index]  # Get color name for display
-        color_text = font.render(f"Current Color: {color_name}", True, (0, 0, 0))  # Black text
-        screen.blit(color_text, (10, 10))
+        if not dropdown_open:
+            font = pygame.font.Font(None, 36)
+            color_name = ["Red", "Green", "Blue", "Yellow", "Cyan", "Magenta", "Orange", "Purple", 
+                        "Deep Pink", "Tomato", "Dark Blue", "Forest Green", "Violet", "Indigo", 
+                        "Hot Pink", "Spring Green", "Red-Orange", "Khaki", "Deep Sky Blue", "Crimson", 
+                        "Bisque", "Steel Blue", "Navajo White", "Salmon", "Gold", "Dark Orange", 
+                        "Goldenrod", "Light Pink", "Medium Aquamarine", "Lavender Blush", "Medium Orchid", 
+                        "Ivory", "Cornsilk", "Light Coral", "Gray", "Black", "White"][current_color_index]  # Get color name for display
+            color_text = font.render(f"Current Color: {color_name}", True, (0, 0, 0))  # Black text
+            screen.blit(color_text, (10, 10))
 
         # Check for user quit (closing window)
         for event in pygame.event.get():
