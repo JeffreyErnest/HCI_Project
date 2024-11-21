@@ -1,8 +1,6 @@
-#pip install pygame
-
 import cv2
 import mediapipe as mp
-import pygame 
+import pygame  # type: ignore
 import time
 import numpy as np
 import math
@@ -16,6 +14,8 @@ pygame.display.set_caption("Drawing App")
 
 # Colors (Expanded Palette)
 WHITE = (255, 255, 255)  # White color
+GREY = (200, 200, 200)
+BLACK = (0, 0, 0)
 
 colors = [
     (255, 0, 0),           # Red
@@ -60,9 +60,12 @@ colors = [
     (0, 0, 0),             # Black
     (255, 255, 255)        # White
 ]
+brush_sizes = [2, 5, 10, 15]
+selected_option = None
 
 current_color_index = 0  # Start with the first color (Red)
 current_color = colors[current_color_index]
+current_brush_size = brush_sizes[0]  # Default brush size
 
 # MediaPipe setup
 mp_face_mesh = mp.solutions.face_mesh
@@ -72,7 +75,7 @@ mp_drawing = mp.solutions.drawing_utils
 # Global variables
 nose_position = None
 previous_nose_position = None  # Track previous nose position
-drawing_segments = []  # Store all the drawing segments, each with color
+drawing_segments = []  # Store all the drawing segments, each with color and brush size
 mouth_open = False  # Track the mouth open state
 last_mouth_state = False  # To track the transition of mouth open/close
 hand_position = None  # Add hand position tracking
@@ -86,8 +89,10 @@ BRUSH_SIZES = [1, 2, 4, 8, 12, 16, 24, 32]  # Different brush sizes in pixels
 current_brush_size = BRUSH_SIZES[len(BRUSH_SIZES)//2]  # Start with middle brush size (12)
 selecting_brush_size = False
 brush_wheel_radius = 80  # Slightly smaller than color wheel
+
 cam_width, cam_height = 275, 160 #Size of webcam feed display
 cam_x = WIDTH - cam_width - 10 # 10px margin from right
+
 cam_y = 10 # 10px margin from top
 drawing_history = []  # Store all drawing segments
 undo_history = []    # Store undone segments
@@ -171,10 +176,11 @@ def draw_brush_size_wheel(center):
     for i, size in enumerate(BRUSH_SIZES):
         angle = (i * (360 / num_sizes)) - 90  # Start from top
         rad = math.radians(angle)
-        
+       
         # Calculate position for this size option
         pos_x = center[0] + (brush_wheel_radius * 0.7) * math.cos(rad)
         pos_y = center[1] + (brush_wheel_radius * 0.7) * math.sin(rad)
+
         
         # Draw circle representing brush size
         pygame.draw.circle(screen, (0, 0, 0), (int(pos_x), int(pos_y)), size // 2)
@@ -405,3 +411,4 @@ finally:
     cap.release()
     cv2.destroyAllWindows()
     pygame.quit()
+
