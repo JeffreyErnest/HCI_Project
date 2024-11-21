@@ -1,5 +1,3 @@
-#pip install pygame
-
 import cv2
 import mediapipe as mp
 import pygame
@@ -8,8 +6,11 @@ import numpy as np
 
 # Initialize Pygame
 pygame.init()
-WIDTH, HEIGHT = 640, 480  # Define the size of the Pygame window
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+
+# Get screen size for fullscreen
+info = pygame.display.Info()
+WIDTH, HEIGHT = info.current_w, info.current_h  # Define the size of the Pygame window (fullscreen)
+screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE) # create maximized window
 pygame.display.set_caption("Draw with Nose")
 
 # Colors (Expanded Palette)
@@ -65,6 +66,7 @@ selected_option = None
 
 current_color_index = 0  # Start with the first color (Red)
 current_color = colors[current_color_index]
+current_brush_size = brush_sizes[0]  # Default brush size
 
 # MediaPipe setup
 mp_face_mesh = mp.solutions.face_mesh
@@ -73,12 +75,15 @@ mp_drawing = mp.solutions.drawing_utils
 # Global variables
 nose_position = None
 previous_nose_position = None  # Track previous nose position
-drawing_segments = []  # Store all the drawing segments, each with color
+drawing_segments = []  # Store all the drawing segments, each with color and brush size
 mouth_open = False  # Track the mouth open state
 last_mouth_state = False  # To track the transition of mouth open/close
 canChange = True
 lastTime = 0
 dropdown_open = False
+cam_width, cam_height = 275, 160 #Size of webcam feed display
+cam_x = WIDTH - cam_width - 10 # 10px margin from right
+cam_y = 10 # 10px margin from top
 
 dropdown_rect = pygame.Rect(10, 10, 150, 40)
 button_rect = pygame.Rect(450, 50, 50, 50)
@@ -89,6 +94,16 @@ drawing_segments = []
 MAX_ITEMS_PER_ROW = 10  # Max items per row
 ITEM_SPACING = 40      # Space between items
 ITEM_SIZE = 30 
+
+# Initialize font for rendering text
+font = pygame.font.Font(None, 36)
+
+# Function to convert the OpenCV image to a Pygame surface instead for webcam
+def to_pygame(image):
+    # Convert from BGR to RGB instead of Pygame
+    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    # Convert to Pygame surface now
+    return pygame.surfarray.make_surface(image_rgb)
 
 # Helper function to check if the mouth is open
 def is_mouth_open(landmarks):
@@ -102,6 +117,20 @@ def is_mouth_open(landmarks):
     # Return True if the mouth distance exceeds a threshold (indicating mouth is open)
     mouth_threshold = 0.03  # Adjust this threshold based on testing
     return mouth_distance > mouth_threshold
+
+# Function to check if nose is hovering over a color swatch
+def is_hovering_over_color(nose_pos, color_rects):
+    for i, color_rect in enumerate(color_rects):
+        if color_rect.collidepoint(nose_pos):
+            return i  # Return the index of the hovered color
+    return -1  # No color hovered
+
+# Function to check if nose is hovering over a brush size
+def is_hovering_over_brush_size(nose_pos, brush_size_rects):
+    for i, size_rect in enumerate(brush_size_rects):
+        if size_rect.collidepoint(nose_pos):
+            return i  # Return the index of the hovered brush size
+    return -1  # No brush size hovered
 
 # Initialize MediaPipe Face Mesh with the task file
 with mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence=0.5) as face_mesh:
@@ -127,6 +156,18 @@ with mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence
 
         # Update Pygame screen
         screen.fill(WHITE)  # Clear screen with white background
+
+        # Draw current color in top-left corner
+        pygame.draw.rect(screen, current_color, (10, 10, 50, 50))  # Draw color swatch
+        color_text = font.render("Current Color", True, BLACK)
+        screen.blit(color_text, (70, 10))  # Display label text
+
+        # Draw webcam in fixed top-left corner
+        corner_cam = to_pygame(cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE))
+        screen.blit(pygame.transform.scale(corner_cam, (cam_width, cam_height)), (cam_x, cam_y)) # resize + position
+        
+        color_rects = []  # List to store the color rectangles for hover checking
+        brush_size_rects = []  # List to store the brush size rectangles for hover checking
         
         if results.multi_face_landmarks:
             for face_landmarks in results.multi_face_landmarks:
@@ -136,10 +177,9 @@ with mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence
                 # Flip the x-coordinate so that the drawing mirrors your motion irl
                 nose_position = (WIDTH - int(nose_landmark.x * WIDTH), int(nose_landmark.y * HEIGHT))
 
-                
                 # Only start drawing if the nose moves a significant amount
-                if not dropdown_open and previous_nose_position and nose_position != previous_nose_position:
-                    drawing_segments.append((previous_nose_position, nose_position, current_color))
+                if not dropdown_open and previous_nose_position and np.linalg.norm(np.array(nose_position) - np.array(previous_nose_position)) > 10:
+                    drawing_segments.append((previous_nose_position, nose_position, current_color, current_brush_size))
 
                 previous_nose_position = nose_position  # Update the previous position
 
@@ -150,8 +190,6 @@ with mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence
                     currTime = time.time()
                     if currTime - lastTime >= 1:
                         canChange = True
-                    #checks if its been 1 second since turning false
-                        #Change to tru if it has been
 
                 # Detect transition from closed to open mouth (for color cycling)
                 if mouth_open and canChange and not last_mouth_state:
@@ -159,15 +197,11 @@ with mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence
                     canChange = False
                     lastTime = time.time()
 
-                # Detect transition from closed to open mouth (for color cycling)
-                # if mouth_open and not last_mouth_state:
-                #     # Cycle to the next color
-                #     current_color_index = (current_color_index + 1) % len(colors)
-                #     current_color = colors[current_color_index]
+                # Hover detection logic for colors
                 if dropdown_open:
                     pygame.draw.rect(screen, GREY, dropdown_rect)
 
-                    # Draw color swatches
+                    # Draw color swatches and check if nose is hovering over any color
                     for i, color in enumerate(colors):
                         # Calculate row and column for this item
                         row = i // MAX_ITEMS_PER_ROW
@@ -180,60 +214,50 @@ with mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence
                         )
                         pygame.draw.rect(screen, color, color_rect)
                         pygame.draw.rect(screen, BLACK, color_rect, 2)
+                        
+                        color_rects.append(color_rect)  # Add rect for hover detection
 
-                    # Calculate offset for brush sizes (below color swatches)
+                    # Check if the nose is hovering over any color
+                    hovered_index = is_hovering_over_color(nose_position, color_rects)
+                    if hovered_index != -1:
+                        current_color = colors[hovered_index]  # Change the color to the hovered one
+
+                    # Draw brush size options below the colors
                     num_color_rows = (len(colors) + MAX_ITEMS_PER_ROW - 1) // MAX_ITEMS_PER_ROW
                     brush_offset_y = dropdown_rect.y + num_color_rows * ITEM_SPACING + 10
 
-                    # Draw brush size options
                     for i, size in enumerate(brush_sizes):
                         size_rect = pygame.Rect(
                             dropdown_rect.x + 10, 
-                            dropdown_rect.y + (len(colors) * 30) + (i * 30) + 10, 
-                            dropdown_rect.width - 20, 30
+                            brush_offset_y + (i * ITEM_SPACING),  # Adjust position dynamically
+                            dropdown_rect.width - 20, ITEM_SIZE   # Brush size height
                         )
                         pygame.draw.rect(screen, WHITE, size_rect)
                         size_text = font.render(f"Size {size}", True, BLACK)
                         screen.blit(size_text, (size_rect.x + 5, size_rect.y + 5))
-                    
-                last_mouth_state = mouth_open  # Update last mouth state
 
+                        brush_size_rects.append(size_rect)  # Add rect for hover detection
 
-                if nose_position:
-                    pygame.draw.circle(screen, BLACK, nose_position, 5)
+                # Check if the nose is hovering over any brush size
+                hovered_brush_size = is_hovering_over_brush_size(nose_position, brush_size_rects)
+                if hovered_brush_size != -1:
+                    current_brush_size = brush_sizes[hovered_brush_size]  # Change the brush size to the hovered one
 
-        # Draw all the segments with their respective colors
-        for start_point, end_point, color in drawing_segments:
-            pygame.draw.line(screen, color, start_point, end_point, 2)
+                # Draw lines based on previous nose position with their respective sizes
+                for segment in drawing_segments:
+                    pygame.draw.line(screen, segment[2], segment[0], segment[1], segment[3])  # Use stored brush size for each segment
+                
+            last_mouth_state = mouth_open  # Update mouth state
 
-        # Display the current color on the screen
-        if not dropdown_open:
-            font = pygame.font.Font(None, 36)
-            color_name = ["Red", "Green", "Blue", "Yellow", "Cyan", "Magenta", "Orange", "Purple", 
-                        "Deep Pink", "Tomato", "Dark Blue", "Forest Green", "Violet", "Indigo", 
-                        "Hot Pink", "Spring Green", "Red-Orange", "Khaki", "Deep Sky Blue", "Crimson", 
-                        "Bisque", "Steel Blue", "Navajo White", "Salmon", "Gold", "Dark Orange", 
-                        "Goldenrod", "Light Pink", "Medium Aquamarine", "Lavender Blush", "Medium Orchid", 
-                        "Ivory", "Cornsilk", "Light Coral", "Gray", "Black", "White"][current_color_index]  # Get color name for display
-            color_text = font.render(f"Current Color: {color_name}", True, (0, 0, 0))  # Black text
-            screen.blit(color_text, (10, 10))
+            if nose_position:
+                pygame.draw.circle(screen, BLACK, nose_position, 5)
+        
+        # Update the display
+        pygame.display.update()
 
-        # Check for user quit (closing window)
+        # Handle quitting the program
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 cap.release()
                 pygame.quit()
-                exit()
-
-        # Update Pygame display
-        pygame.display.update()
-
-        # Show the flipped webcam feed in a window
-        cv2.imshow("MediaPipe Face", flipped_image)
-
-        # Exit on ESC
-        if cv2.waitKey(1) & 0xFF == 27:
-            break
-
-    cap.release()
-    pygame.quit()
+                quit()
