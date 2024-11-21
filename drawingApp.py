@@ -2,7 +2,7 @@
 
 import cv2
 import mediapipe as mp
-import pygame
+import pygame 
 import time
 import numpy as np
 import math
@@ -81,6 +81,10 @@ drawing_active = False  # Add a new global variable to track drawing state
 COLOR_WHEEL_RADIUS = 50
 selecting_color = False
 color_wheel_center = (0, 0)  # This will be updated dynamically
+BRUSH_SIZES = [1, 2, 4, 8, 12, 16, 24, 32]  # Different brush sizes in pixels
+current_brush_size = 2  # Default brush size
+selecting_brush_size = False
+brush_wheel_radius = 80  # Slightly smaller than color wheel
 
 # Helper function to check if the mouth is open
 def is_mouth_open(landmarks):
@@ -129,6 +133,61 @@ def get_color_from_wheel(pos, center):
         return color.r, color.g, color.b
     return None
 
+# Add this function to detect head tilt
+def get_head_tilt(landmarks):
+    # Get left and right eye landmarks
+    left_eye = landmarks[33]  # Adjust index based on your MediaPipe face mesh points
+    right_eye = landmarks[263]
+    
+    # Calculate tilt angle
+    dx = right_eye.x - left_eye.x
+    dy = right_eye.y - left_eye.y
+    angle = math.degrees(math.atan2(dy, dx))
+    
+    # Return True if head is tilted left (negative angle beyond threshold)
+    return angle < -15  # Adjust threshold as needed
+
+# Add function to draw brush size wheel
+def draw_brush_size_wheel(center):
+    # Draw background circle
+    pygame.draw.circle(screen, (200, 200, 200), center, brush_wheel_radius)
+    
+    # Calculate positions for each brush size option
+    num_sizes = len(BRUSH_SIZES)
+    for i, size in enumerate(BRUSH_SIZES):
+        angle = (i * (360 / num_sizes)) - 90  # Start from top
+        rad = math.radians(angle)
+        
+        # Calculate position for this size option
+        pos_x = center[0] + (brush_wheel_radius * 0.7) * math.cos(rad)
+        pos_y = center[1] + (brush_wheel_radius * 0.7) * math.sin(rad)
+        
+        # Draw circle representing brush size
+        pygame.draw.circle(screen, (0, 0, 0), (int(pos_x), int(pos_y)), size // 2)
+        
+        # Draw selection indicator if this is current size
+        if size == current_brush_size:
+            pygame.draw.circle(screen, (255, 0, 0), (int(pos_x), int(pos_y)), size // 2 + 2, 2)
+
+def get_brush_size_from_wheel(pos, center):
+    # Calculate angle from center to position
+    dx = pos[0] - center[0]
+    dy = pos[1] - center[1]
+    distance = math.sqrt(dx*dx + dy*dy)
+    
+    if distance <= brush_wheel_radius:
+        angle = math.degrees(math.atan2(dy, dx)) + 90  # Adjust to match our wheel layout
+        if angle < 0:
+            angle += 360
+            
+        # Convert angle to brush size index
+        size_index = int((angle / 360) * len(BRUSH_SIZES))
+        if size_index >= len(BRUSH_SIZES):
+            size_index = 0
+            
+        return BRUSH_SIZES[size_index]
+    return None
+
 # Initialize both MediaPipe modules
 with mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence=0.5) as face_mesh:
     with mp_hands.Hands(min_detection_confidence=0.5, min_tracking_confidence=0.5) as hands:
@@ -161,24 +220,32 @@ with mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence
                     nose_landmark = face_landmarks.landmark[1]
                     nose_position = (WIDTH - int(nose_landmark.x * WIDTH), int(nose_landmark.y * HEIGHT))
                     
-                    # Check mouth state for color wheel
                     mouth_open = is_mouth_open(face_landmarks.landmark)
+                    head_tilted = get_head_tilt(face_landmarks.landmark)
                     
                     if mouth_open and not last_mouth_state:
                         selecting_color = True
-                        # Set color wheel center to current cursor position
+                        selecting_brush_size = False
                         color_wheel_center = nose_position
                     elif not mouth_open and last_mouth_state:
                         selecting_color = False
-                        
+                        selecting_brush_size = False
+                    
                     if selecting_color:
-                        # Draw the color wheel at the current position
-                        draw_color_wheel(color_wheel_center)
-                        
-                        # Check if nose is in color wheel
-                        new_color = get_color_from_wheel(nose_position, color_wheel_center)
-                        if new_color:
-                            current_color = new_color
+                        if head_tilted:
+                            selecting_brush_size = True
+                            selecting_color = False
+                        else:
+                            draw_color_wheel(color_wheel_center)
+                            new_color = get_color_from_wheel(nose_position, color_wheel_center)
+                            if new_color:
+                                current_color = new_color
+                    
+                    if selecting_brush_size:
+                        draw_brush_size_wheel(color_wheel_center)
+                        new_size = get_brush_size_from_wheel(nose_position, color_wheel_center)
+                        if new_size:
+                            current_brush_size = new_size
                     
                     last_mouth_state = mouth_open
 
@@ -206,8 +273,19 @@ with mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence
                     previous_nose_position = None
 
             # Draw all existing segments
-            for start_point, end_point, color in drawing_segments:
-                pygame.draw.line(screen, color, start_point, end_point, 2)
+            for start_point, end_point, color, size in drawing_segments:
+                # Calculate points between start and end to make smooth line
+                dx = end_point[0] - start_point[0]
+                dy = end_point[1] - start_point[1]
+                distance = math.sqrt(dx*dx + dy*dy)
+                
+                # Calculate how many circles we need to fill the gap
+                steps = max(int(distance / (size/4)), 1)
+                
+                for i in range(steps + 1):
+                    x = start_point[0] + (dx * i / steps)
+                    y = start_point[1] + (dy * i / steps)
+                    pygame.draw.circle(screen, color, (int(x), int(y)), size//2)
 
             # Handle nose mode drawing
             if drawing_mode == "nose" and results_face.multi_face_landmarks:
@@ -216,15 +294,13 @@ with mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence
                     nose_position = (WIDTH - int(nose_landmark.x * WIDTH), int(nose_landmark.y * HEIGHT))
                     
                     # Always draw cursor dot
-                    pygame.draw.circle(screen, current_color, nose_position, 5)
+                    pygame.draw.circle(screen, current_color, nose_position, current_brush_size//2)
                     
                     # Only add line segments when drawing is active
                     if drawing_active:
                         if previous_nose_position:
-                            drawing_segments.append((previous_nose_position, nose_position, current_color))
+                            drawing_segments.append((previous_nose_position, nose_position, current_color, current_brush_size))
                         previous_nose_position = nose_position
-                    else:
-                        previous_nose_position = None
 
             # Handle hand mode drawing
             if drawing_mode == "hand" and results_hands.multi_hand_landmarks:
@@ -233,15 +309,12 @@ with mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence
                 hand_position = (WIDTH - int(index_finger.x * WIDTH), int(index_finger.y * HEIGHT))
                 
                 # Always draw cursor dot
-                pygame.draw.circle(screen, current_color, hand_position, 5)
+                pygame.draw.circle(screen, current_color, hand_position, current_brush_size//2)
                 
-                # Only add line segments when drawing is active
                 if drawing_active:
                     if previous_hand_position:
-                        drawing_segments.append((previous_hand_position, hand_position, current_color))
+                        drawing_segments.append((previous_hand_position, hand_position, current_color, current_brush_size))
                     previous_hand_position = hand_position
-                else:
-                    previous_hand_position = None
 
             # Display the current color on the screen
             font = pygame.font.Font(None, 36)
