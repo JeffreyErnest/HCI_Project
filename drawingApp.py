@@ -354,6 +354,7 @@ try:
                         nose_position = (WIDTH - int(nose_landmark.x * WIDTH), int(nose_landmark.y * HEIGHT))
                         
                         # Always draw cursor dot
+                        pygame.draw.circle(screen, BLACK, nose_position, current_brush_size//2 + 2)
                         pygame.draw.circle(screen, current_color, nose_position, current_brush_size//2)
                         
                         # Only add line segments when drawing is active
@@ -371,6 +372,7 @@ try:
                     hand_position = (WIDTH - int(index_finger.x * WIDTH), int(index_finger.y * HEIGHT))
                     
                     # Always draw cursor dot
+                    pygame.draw.circle(screen, BLACK, nose_position, current_brush_size//2 + 2)
                     pygame.draw.circle(screen, current_color, hand_position, current_brush_size//2)
                     
                     if drawing_active:
@@ -411,4 +413,3 @@ finally:
     cap.release()
     cv2.destroyAllWindows()
     pygame.quit()
-
