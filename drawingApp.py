@@ -9,9 +9,10 @@ import math
 
 # Initialize Pygame
 pygame.init()
-WIDTH, HEIGHT = 640, 480  # Define the size of the Pygame window
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Draw with Nose")
+info = pygame.display.Info()
+WIDTH, HEIGHT = info.current_w, info.current_h  # Define the size of the Pygame window
+screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
+pygame.display.set_caption("Drawing App")
 
 # Colors (Expanded Palette)
 WHITE = (255, 255, 255)  # White color
@@ -82,9 +83,13 @@ COLOR_WHEEL_RADIUS = 50
 selecting_color = False
 color_wheel_center = (0, 0)  # This will be updated dynamically
 BRUSH_SIZES = [1, 2, 4, 8, 12, 16, 24, 32]  # Different brush sizes in pixels
-current_brush_size = 2  # Default brush size
+current_brush_size = BRUSH_SIZES[len(BRUSH_SIZES)//2]  # Start with middle brush size (12)
 selecting_brush_size = False
 brush_wheel_radius = 80  # Slightly smaller than color wheel
+cam_width, cam_height = 275, 160 #Size of webcam feed display
+cam_x = WIDTH - cam_width - 10 # 10px margin from right
+cam_y = 10 # 10px margin from top
+
 
 # Helper function to check if the mouth is open
 def is_mouth_open(landmarks):
@@ -188,6 +193,12 @@ def get_brush_size_from_wheel(pos, center):
         return BRUSH_SIZES[size_index]
     return None
 
+def to_pygame(image):
+    # Convert from BGR to RGB instead of Pygame
+    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    # Convert to Pygame surface now
+    return pygame.surfarray.make_surface(image_rgb)
+
 # Initialize both MediaPipe modules
 with mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence=0.5) as face_mesh:
     with mp_hands.Hands(min_detection_confidence=0.5, min_tracking_confidence=0.5) as hands:
@@ -212,11 +223,28 @@ with mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence
 
             # Update Pygame screen
             screen.fill(WHITE)  # Clear screen with white background
+            pygame.draw.rect(screen, current_color, (10, 10, 50, 50))  # Draw color swatch
+            corner_cam = to_pygame(cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE))
+            screen.blit(pygame.transform.scale(corner_cam, (cam_width, cam_height)), (cam_x, cam_y)) # resize + position
             
-            # Handle face detection for color changing
+            # Draw all existing segments
+            for start_point, end_point, color, size in drawing_segments:
+                # Calculate points between start and end to make smooth line
+                dx = end_point[0] - start_point[0]
+                dy = end_point[1] - start_point[1]
+                distance = math.sqrt(dx*dx + dy*dy)
+                
+                # Calculate how many circles we need to fill the gap
+                steps = max(int(distance / (size/4)), 1)
+                
+                for i in range(steps + 1):
+                    x = start_point[0] + (dx * i / steps)
+                    y = start_point[1] + (dy * i / steps)
+                    pygame.draw.circle(screen, color, (int(x), int(y)), size//2)
+
+            # Handle face detection for color changing - MOVED HERE
             if results_face.multi_face_landmarks:
                 for face_landmarks in results_face.multi_face_landmarks:
-                    # Get nose position first
                     nose_landmark = face_landmarks.landmark[1]
                     nose_position = (WIDTH - int(nose_landmark.x * WIDTH), int(nose_landmark.y * HEIGHT))
                     
@@ -231,6 +259,7 @@ with mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence
                         selecting_color = False
                         selecting_brush_size = False
                     
+                    # Draw wheels on top of everything
                     if selecting_color:
                         if head_tilted:
                             selecting_brush_size = True
@@ -272,21 +301,6 @@ with mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence
                     previous_hand_position = None
                     previous_nose_position = None
 
-            # Draw all existing segments
-            for start_point, end_point, color, size in drawing_segments:
-                # Calculate points between start and end to make smooth line
-                dx = end_point[0] - start_point[0]
-                dy = end_point[1] - start_point[1]
-                distance = math.sqrt(dx*dx + dy*dy)
-                
-                # Calculate how many circles we need to fill the gap
-                steps = max(int(distance / (size/4)), 1)
-                
-                for i in range(steps + 1):
-                    x = start_point[0] + (dx * i / steps)
-                    y = start_point[1] + (dy * i / steps)
-                    pygame.draw.circle(screen, color, (int(x), int(y)), size//2)
-
             # Handle nose mode drawing
             if drawing_mode == "nose" and results_face.multi_face_landmarks:
                 for face_landmarks in results_face.multi_face_landmarks:
@@ -324,18 +338,18 @@ with mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence
                           "Bisque", "Steel Blue", "Navajo White", "Salmon", "Gold", "Dark Orange", 
                           "Goldenrod", "Light Pink", "Medium Aquamarine", "Lavender Blush", "Medium Orchid", 
                           "Ivory", "Cornsilk", "Light Coral", "Gray", "Black", "White"][current_color_index]  # Get color name for display
-            color_text = font.render(f"Current Color: {color_name}", True, (0, 0, 0))  # Black text
-            screen.blit(color_text, (10, 10))
+            # color_text = font.render(f"Current Color: {color_name}", True, (0, 0, 0))  # Black text
+            # screen.blit(color_text, (10, 10))
 
             # Update mode display
             mode_text = font.render(f"Mode: {drawing_mode.capitalize()} Drawing", True, (0, 0, 0))
-            screen.blit(mode_text, (10, 50))
+            screen.blit(mode_text, (70, 10))
 
             # Update Pygame display
             pygame.display.update()
 
-            # Show the flipped webcam feed in a window
-            cv2.imshow("MediaPipe Face", flipped_image)
+            # # Show the flipped webcam feed in a window
+            # cv2.imshow("MediaPipe Face", flipped_image)
 
             # Exit on ESC
             if cv2.waitKey(5) & 0xFF == 27:
