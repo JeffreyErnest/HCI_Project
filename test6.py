@@ -195,6 +195,23 @@ def draw_save_button(x, y):
 
     return button_rect  # Return the button rectangle for checking collision
 
+def draw_exit_button(x, y):
+    button_rect = pygame.Rect(x, y, save_button_width, save_button_height)
+    
+    # Check for mouse hover (for visual feedback)
+    mouse_x, mouse_y = pygame.mouse.get_pos()
+    if button_rect.collidepoint(mouse_x, mouse_y):
+        pygame.draw.rect(screen, save_button_hover_color, button_rect)
+    else:
+        pygame.draw.rect(screen, save_button_color, button_rect)
+    
+    # Render button text
+    text = save_button_font.render("Exit", True, save_button_text_color)
+    text_rect = text.get_rect(center=button_rect.center)
+    screen.blit(text, text_rect)
+
+    return button_rect
+
 
 # Add function to draw brush size wheel
 def draw_brush_size_wheel(center):
@@ -290,13 +307,19 @@ try:
                 if drawing_mode == "nose":
                     save_button_x = WIDTH - save_button_width - 40  # 10 pixels padding from the right
                     save_button_y = HEIGHT - save_button_height - 40  # 10 pixels padding from the bottom
+                    exit_button_x = WIDTH - save_button_width - save_button_x
+                    exit_button_y = HEIGHT - save_button_height - 40  
+                    
                 
                 if drawing_mode == "hand":
-                    save_button_x = WIDTH - save_button_width - 70  # 10 pixels padding from the right
-                    save_button_y = HEIGHT - save_button_height - 600  # 10 pixels padding from the bottom
+                    save_button_x = WIDTH - save_button_width - 40  # 10 pixels padding from the right
+                    save_button_y = HEIGHT - save_button_height - 40  # 10 pixels padding from the bottom
+                    exit_button_x = WIDTH - save_button_width - save_button_x 
+                    exit_button_y = HEIGHT - save_button_height - 40  
 
                 # Draw the button
                 save_button_rect = draw_save_button(save_button_x, save_button_y)
+                exit_button_rect = draw_exit_button(exit_button_x, exit_button_y)
 
 
                 # Draw all existing segments
@@ -413,6 +436,14 @@ try:
                                 screenshot = ImageGrab.grab()  # Capture the screenshot
                                 screenshot.save("screenshot.png")  # Save the screenshot as PNG
                                 print("Drawing Was Saved as 'screenshot.png'")
+                            elif nose_position is not None and exit_button_rect.collidepoint(nose_position) and drawing_mode == "nose":
+                                cap.release()
+                                cv2.destroyAllWindows()
+                                pygame.quit()
+                            elif hand_position is not None and exit_button_rect.collidepoint(hand_position) and drawing_mode == "hand":
+                                cap.release()
+                                cv2.destroyAllWindows()
+                                pygame.quit()
                             else:
                                 drawing_active = True
                                 print("Space pressed - Drawing activated")
