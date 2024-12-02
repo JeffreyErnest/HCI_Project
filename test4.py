@@ -233,7 +233,7 @@ def display_instructions():
     title_font = pygame.font.Font(None, 50)
 
     # Text for the instructions
-    title_text = title_font.render("Welcome to the Drawing App!", True, (0, 0, 0))
+    title_text = title_font.render("Welcome to ClickCanvas!", True, (0, 0, 0))
     instructions = [
         "Instructions:",
         "; Move your nose or hand to draw on the canvas.",
