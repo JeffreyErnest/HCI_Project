@@ -90,10 +90,12 @@ current_brush_size = BRUSH_SIZES[len(BRUSH_SIZES)//2]  # Start with middle brush
 selecting_brush_size = False
 brush_wheel_radius = 80  # Slightly smaller than color wheel
 
+WEBCAM_SCALE = 0.2 # webcame is 20% of window's width
+WEBCAM_MARGIN = 10 # margin from corner
 cam_width, cam_height = 275, 160 #Size of webcam feed display
 cam_x = WIDTH - cam_width - 10 # 10px margin from right
-
 cam_y = 10 # 10px margin from top
+
 drawing_history = []  # Store all drawing segments
 undo_history = []    # Store undone segments
 last_mouth_close_time = 0  # Track when mouth was last closed
@@ -209,6 +211,12 @@ def get_brush_size_from_wheel(pos, center):
         return BRUSH_SIZES[size_index]
     return None
 
+def update_cam_position():
+    global cam_x, cam_y
+
+    cam_x = WIDTH - cam_width - WEBCAM_MARGIN
+    cam_y = WEBCAM_MARGIN
+
 def to_pygame(image):
     # Convert from BGR to RGB instead of Pygame
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -241,9 +249,17 @@ try:
                 # Update Pygame screen
                 screen.fill(WHITE)  # Clear screen with white background
                 pygame.draw.rect(screen, current_color, (10, 10, 50, 50))  # Draw color swatch
-                corner_cam = to_pygame(cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE))
-                screen.blit(pygame.transform.scale(corner_cam, (cam_width, cam_height)), (cam_x, cam_y)) # resize + position
+                #corner_cam = to_pygame(cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE))
+                corner_cam = cv2.resize(image, (cam_width, cam_height)) # resize feed
+                # screen.blit(pygame.transform.scale(corner_cam, (cam_width, cam_height)), (cam_x, cam_y)) # resize + position
                 
+                corner_cam_surface = pygame.surfarray.make_surface(corner_cam)
+
+                # rotate cam & display
+                rotated_x = cam_x - cam_width - WEBCAM_MARGIN 
+                rotated_cam = to_pygame(cv2.rotate(corner_cam, cv2.ROTATE_90_COUNTERCLOCKWISE))
+                screen.blit(pygame.transform.scale(rotated_cam, (cam_width, cam_height)), (cam_x, cam_y)) # display in corner
+
                 # Draw all existing segments
                 for start_point, end_point, color, size in drawing_segments:
                     # Calculate points between start and end to make smooth line
@@ -338,6 +354,10 @@ try:
                         cap.release()
                         pygame.quit()
                         exit()
+                    elif event.type == pygame.VIDEORESIZE: # window resized
+                        WIDTH, HEIGHT = event.w, event.h # update WIDTH and HEIGHT
+                        screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
+                        update_cam_position() #recalculate camsize 
                     elif event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_RETURN:
                             drawing_mode = "hand" if drawing_mode == "nose" else "nose"
