@@ -90,7 +90,6 @@ current_brush_size = BRUSH_SIZES[len(BRUSH_SIZES)//2]  # Start with middle brush
 selecting_brush_size = False
 brush_wheel_radius = 80  # Slightly smaller than color wheel
 
-# Camera global vars
 WEBCAM_SCALE = 0.2 # webcame is 20% of window's width
 WEBCAM_MARGIN = 10 # margin from corner
 cam_width, cam_height = 275, 160 #Size of webcam feed display
@@ -103,6 +102,7 @@ last_mouth_close_time = 0  # Track when mouth was last closed
 UNDO_REDO_DELAY = 2  # Delay in seconds before undo/redo is enabled after closing mouth
 is_eraser_mode = False  # Track if we're in eraser mode
 ORIGINAL_COLOR = None   # Store the original color when switching to eraser
+mouth_open_count = 0  # Track the number of mouth open events
 
 # Helper function to check if the mouth is open
 def is_mouth_open(landmarks):
@@ -212,12 +212,8 @@ def get_brush_size_from_wheel(pos, center):
     return None
 
 def update_cam_position():
-    # Calculate new cam dimensions based on window size
     global cam_x, cam_y
-    #cam_width = int(WIDTH * WEBCAM_SCALE)
-    #cam_height = int(cam_width * (9/16)) # Using a 16:9 aspect ratio for camera
 
-    # Now position in top right corner
     cam_x = WIDTH - cam_width - WEBCAM_MARGIN
     cam_y = WEBCAM_MARGIN
 
@@ -226,6 +222,75 @@ def to_pygame(image):
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     # Convert to Pygame surface now
     return pygame.surfarray.make_surface(image_rgb)
+
+def display_instructions():
+    #create separate surface for popup
+    popup_surface = pygame.Surface((WIDTH, HEIGHT))
+    popup_surface.fill(GREY)
+
+    #setup fonts
+    font = pygame.font.Font("Jefffont-Regular.ttf", 36)
+    title_font = pygame.font.Font(None, 50)
+
+    # Text for the instructions
+    title_text = title_font.render("Welcome to the Drawing App!", True, (0, 0, 0))
+    instructions = [
+        "Instructions:",
+        "; Move your nose or hand to draw on the canvas.",
+        "; Press \"Space\" to start or stop drawing.",
+        "; Press \"Enter\" to switch between nose and hand mode.",
+        "; Open your mouth to select a color.",
+        "      ; Tilt right while selecting color to change brush size.",
+        "      ; Tilt left while selecting color to toggle eraser.",
+        "; Tilt your head right to undo, left to redo.",
+        "",
+        "Click 'Draw Now!' to start drawing!"
+    ]
+
+     # Render instructions line by line
+    text_surfaces = [font.render(line, True, (0, 0, 0)) for line in instructions]
+
+    # Positioning
+    title_pos = (WIDTH // 2 - title_text.get_width() // 2, 50)
+    text_positions = [(50, 150 + i * 40) for i in range(len(text_surfaces))]
+
+    # Draw all text
+    popup_surface.blit(title_text, title_pos)
+    for text_surface, pos in zip(text_surfaces, text_positions):
+        popup_surface.blit(text_surface, pos)
+
+    # Create a "Continue" button
+    button_font = pygame.font.Font(None, 40)
+    button_text = button_font.render("Draw Now!", True, WHITE)
+    button_width, button_height = 200, 60
+    button_x = WIDTH // 2 - button_width // 2
+    button_y = HEIGHT - 300
+    button_rect = pygame.Rect(button_x, button_y, button_width, button_height)
+
+    # Main event loop for the popup
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if button_rect.collidepoint(event.pos):
+                    running = False  # Exit the popup loop
+
+        # Draw button
+        pygame.draw.rect(popup_surface, (0, 128, 0), button_rect)
+        pygame.draw.rect(popup_surface, (0, 255, 0), button_rect, 3)  # Outline
+        popup_surface.blit(button_text, (button_x + button_width // 2 - button_text.get_width() // 2,
+                                         button_y + button_height // 2 - button_text.get_height() // 2))
+
+        # Display the popup surface on the screen
+        screen.blit(popup_surface, (0, 0))
+        pygame.display.update()
+
+
+#show intructions popup
+display_instructions()
 
 try:
     # Initialize both MediaPipe modules
@@ -253,16 +318,17 @@ try:
                 # Update Pygame screen
                 screen.fill(WHITE)  # Clear screen with white background
                 pygame.draw.rect(screen, current_color, (10, 10, 50, 50))  # Draw color swatch
-
-                # convert and display feed dynamically
+                #corner_cam = to_pygame(cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE))
                 corner_cam = cv2.resize(image, (cam_width, cam_height)) # resize feed
+                # screen.blit(pygame.transform.scale(corner_cam, (cam_width, cam_height)), (cam_x, cam_y)) # resize + position
+                
                 corner_cam_surface = pygame.surfarray.make_surface(corner_cam)
 
                 # rotate cam & display
                 rotated_x = cam_x - cam_width - WEBCAM_MARGIN 
                 rotated_cam = to_pygame(cv2.rotate(corner_cam, cv2.ROTATE_90_COUNTERCLOCKWISE))
                 screen.blit(pygame.transform.scale(rotated_cam, (cam_width, cam_height)), (cam_x, cam_y)) # display in corner
-                
+
                 # Draw all existing segments
                 for start_point, end_point, color, size in drawing_segments:
                     # Calculate points between start and end to make smooth line
@@ -270,6 +336,7 @@ try:
                     dy = end_point[1] - start_point[1]
                     distance = math.sqrt(dx*dx + dy*dy)
                     
+                    # Calculate how many circles we need to fill the gap
                     steps = max(int(distance / (size/4)), 1)
                     
                     for i in range(steps + 1):
@@ -289,18 +356,25 @@ try:
                         current_time = time.time()
                         
                         if mouth_open and not last_mouth_state:
-                            selecting_color = True
-                            selecting_brush_size = False
-                            # Update color wheel center based on current mode
-                            if drawing_mode == "nose":
-                                color_wheel_center = nose_position
-                            elif drawing_mode == "hand" and hand_position:
-                                color_wheel_center = hand_position
+                            mouth_open_count += 1  # Increment count on mouth open
+                            if mouth_open_count == 1:
+                                selecting_color = True
+                                selecting_brush_size = False
+                                # Update color wheel center based on current mode
+                                if drawing_mode == "nose":
+                                    color_wheel_center = nose_position
+                                elif drawing_mode == "hand" and hand_position:
+                                    color_wheel_center = hand_position
+                            elif mouth_open_count == 2:
+                                selecting_color = False
+                                selecting_brush_size = False
+                                mouth_open_count = 0  # Reset count after closing mouth
+
                         elif not mouth_open and last_mouth_state:
-                            selecting_color = False
-                            selecting_brush_size = False
-                            last_mouth_close_time = current_time  # Record when mouth was closed
-                        
+                            # Only reset the count if the mouth was open before
+                            if mouth_open_count == 1:
+                                last_mouth_close_time = current_time  # Record when mouth was closed
+
                         # Handle undo/redo when mouth is closed and after delay
                         if not mouth_open and (current_time - last_mouth_close_time) > UNDO_REDO_DELAY:
                             if head_tilt == 1 and drawing_segments:  # Right tilt - Undo (changed from -1)
