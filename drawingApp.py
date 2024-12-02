@@ -100,6 +100,7 @@ last_mouth_close_time = 0  # Track when mouth was last closed
 UNDO_REDO_DELAY = 2  # Delay in seconds before undo/redo is enabled after closing mouth
 is_eraser_mode = False  # Track if we're in eraser mode
 ORIGINAL_COLOR = None   # Store the original color when switching to eraser
+mouth_open_count = 0  # Track the number of mouth open events
 
 # Helper function to check if the mouth is open
 def is_mouth_open(landmarks):
@@ -270,18 +271,25 @@ try:
                         current_time = time.time()
                         
                         if mouth_open and not last_mouth_state:
-                            selecting_color = True
-                            selecting_brush_size = False
-                            # Update color wheel center based on current mode
-                            if drawing_mode == "nose":
-                                color_wheel_center = nose_position
-                            elif drawing_mode == "hand" and hand_position:
-                                color_wheel_center = hand_position
+                            mouth_open_count += 1  # Increment count on mouth open
+                            if mouth_open_count == 1:
+                                selecting_color = True
+                                selecting_brush_size = False
+                                # Update color wheel center based on current mode
+                                if drawing_mode == "nose":
+                                    color_wheel_center = nose_position
+                                elif drawing_mode == "hand" and hand_position:
+                                    color_wheel_center = hand_position
+                            elif mouth_open_count == 2:
+                                selecting_color = False
+                                selecting_brush_size = False
+                                mouth_open_count = 0  # Reset count after closing mouth
+
                         elif not mouth_open and last_mouth_state:
-                            selecting_color = False
-                            selecting_brush_size = False
-                            last_mouth_close_time = current_time  # Record when mouth was closed
-                        
+                            # Only reset the count if the mouth was open before
+                            if mouth_open_count == 1:
+                                last_mouth_close_time = current_time  # Record when mouth was closed
+
                         # Handle undo/redo when mouth is closed and after delay
                         if not mouth_open and (current_time - last_mouth_close_time) > UNDO_REDO_DELAY:
                             if head_tilt == 1 and drawing_segments:  # Right tilt - Undo (changed from -1)
