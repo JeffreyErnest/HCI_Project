@@ -228,7 +228,9 @@ def display_instructions():
         "; Open your mouth to select a color. Select black from center of wheel.",
         "      ; Tilt right while selecting color to change brush size. Select size from menu.",
         "      ; Tilt left while selecting color to toggle eraser.",
-        "; Tilt your head right to undo or tilt left to redo. Do NOT open your mouth.",
+        "; Tilt your head left to undo or tilt right to redo. Do NOT open your mouth.",
+        "; To save, hover over the 'save' button in the bottom right and hit \"space\".",
+        "; To quit, hover over the 'quit' button in the bottom left and hit \"space\".",
         "",
         "Press TAB to start drawing!"
     ]
