@@ -433,6 +433,18 @@ try:
                                 pygame.quit()
                             else:
                                 drawing_active = True
+                    elif event.type == pygame.MOUSEBUTTONDOWN:
+                        mouse_pos = pygame.mouse.get_pos()
+                        if manual_button_rect.collidepoint(mouse_pos):
+                            display_manual()  # show instructions
+                        elif save_button_rect.collidepoint(mouse_pos):
+                            screenshot = ImageGrab.grab()
+                            screenshot.save("screenshot.png")
+                            print("Drawing Was Saved as 'screenshot.png'")
+                        elif exit_button_rect.collidepoint(mouse_pos):
+                            cap.release()
+                            cv2.destroyAllWindows()
+                            pygame.quit()
                     elif event.type == pygame.VIDEORESIZE:
                         WIDTH, HEIGHT = event.w, event.h
                         screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
