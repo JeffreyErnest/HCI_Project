@@ -81,7 +81,15 @@ save_button_height = 50
 save_button_color = (0, 128, 255)
 save_button_hover_color = (0, 100, 200)
 save_button_text_color = (255, 255, 255)
-save_button_font = pygame.font.Font(None, 36)
+save_button_font = pygame.font.Font("Jefffont-Regular.ttf", 36)
+
+# Instruction manual button settings
+manual_button_width = 150
+manual_button_height = 50
+manual_button_color = (0, 128, 255)
+manual_button_hover_color = (0, 100, 200)
+manual_button_text_color = (255, 255, 255)
+manual_button_font = pygame.font.Font("Jefffont-Regular.ttf", 36)
 
 # Check if mouth is open
 def is_mouth_open(landmarks):
@@ -207,8 +215,22 @@ def draw_exit_button(x, y):
     screen.blit(text, text_rect)
     return button_rect
 
-# Display instructions
-def display_instructions():
+# Draw instruction manual button
+def draw_manual_button(x, y):
+    button_rect = pygame.Rect(x, y, manual_button_width, save_button_height)
+    mouse_x, mouse_y = pygame.mouse.get_pos()
+    if button_rect.collidepoint(mouse_x, mouse_y):
+        pygame.draw.rect(screen, manual_button_hover_color, button_rect)
+    else:
+        pygame.draw.rect(screen, manual_button_color, button_rect)
+
+    text = manual_button_font.render("How To", True, manual_button_text_color)
+    text_rect = text.get_rect(center=button_rect.center)
+    screen.blit(text, text_rect)
+    return button_rect
+
+# Display instruction manual
+def display_manual():
     #create separate surface for popup
     popup_surface = pygame.Surface((WIDTH, HEIGHT))
     popup_surface.fill(GREY)
@@ -263,7 +285,7 @@ def display_instructions():
         pygame.display.update()
 
 # Show instructions popup
-display_instructions()
+display_manual()
 
 try:
     # Initialize MediaPipe modules
@@ -292,14 +314,17 @@ try:
                 rotated_cam = to_pygame(cv2.rotate(corner_cam, cv2.ROTATE_90_COUNTERCLOCKWISE))
                 screen.blit(pygame.transform.scale(rotated_cam, (cam_width, cam_height)), (cam_x, cam_y))  # Display
 
-                # Draw save and exit buttons
+                # Draw save, exit, and manual buttons
                 save_button_x = WIDTH - save_button_width - 40
                 save_button_y = HEIGHT - save_button_height - 40
                 exit_button_x = WIDTH - save_button_width - save_button_x
-                exit_button_y = HEIGHT - save_button_height - 40  
+                exit_button_y = HEIGHT - save_button_height - 40 
+                manual_button_x = (WIDTH - manual_button_width) // 2
+                manual_button_y = HEIGHT - manual_button_height - 40
                 
                 save_button_rect = draw_save_button(save_button_x, save_button_y)
                 exit_button_rect = draw_exit_button(exit_button_x, exit_button_y)
+                manual_button_rect = draw_manual_button(manual_button_x, manual_button_y)
 
                 # Draw existing segments
                 for start_point, end_point, color, size in drawing_segments:
@@ -380,17 +405,17 @@ try:
                         cap.release()
                         pygame.quit()
                         exit()
-                    elif event.type == pygame.VIDEORESIZE:
-                        WIDTH, HEIGHT = event.w, event.h
-                        screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
-                        update_cam_position()
                     elif event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_RETURN:
                             drawing_mode = "hand" if drawing_mode == "nose" else "nose"
                             previous_hand_position = None
                             previous_nose_position = None
                         elif event.key == pygame.K_SPACE:
-                            if nose_position is not None and save_button_rect.collidepoint(nose_position) and drawing_mode == "nose":
+                            if nose_position is not None and manual_button_rect.collidepoint(nose_position) and drawing_mode == "nose":
+                                display_manual() #show instructions
+                            elif hand_position is not None and manual_button_rect.collidepoint(hand_position) and drawing_mode == "hand":
+                                display_manual() #show instructions 
+                            elif nose_position is not None and save_button_rect.collidepoint(nose_position) and drawing_mode == "nose":
                                 screenshot = ImageGrab.grab()
                                 screenshot.save("screenshot.png")
                                 print("Drawing Was Saved as 'screenshot.png'")
@@ -408,6 +433,10 @@ try:
                                 pygame.quit()
                             else:
                                 drawing_active = True
+                    elif event.type == pygame.VIDEORESIZE:
+                        WIDTH, HEIGHT = event.w, event.h
+                        screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
+                        update_cam_position()
                     elif event.type == pygame.KEYUP and event.key == pygame.K_SPACE:
                         drawing_active = False
                         previous_hand_position = None
