@@ -237,14 +237,14 @@ def display_instructions():
     instructions = [
         "Instructions:",
         "; Move your nose or hand to draw on the canvas.",
-        "; Press \"Space\" to start or stop drawing.",
+        "; Hold \"Space\" to draw. Let go of \"space\" to stop drawing.",
         "; Press \"Enter\" to switch between nose and hand mode.",
         "; Open your mouth to select a color.",
-        "      ; Tilt right while selecting color to change brush size.",
+        "      ; Tilt right while selecting color to change brush size. Select size from menu.",
         "      ; Tilt left while selecting color to toggle eraser.",
-        "; Tilt your head right to undo, left to redo.",
+        "; Tilt your head right to undo or tilt left to redo. Do NOT open your mouth.",
         "",
-        "Click 'Draw Now!' to start drawing!"
+        "Press TAB to start drawing!"
     ]
 
      # Render instructions line by line
@@ -259,14 +259,6 @@ def display_instructions():
     for text_surface, pos in zip(text_surfaces, text_positions):
         popup_surface.blit(text_surface, pos)
 
-    # Create a "Continue" button
-    button_font = pygame.font.Font(None, 40)
-    button_text = button_font.render("Draw Now!", True, WHITE)
-    button_width, button_height = 200, 60
-    button_x = WIDTH // 2 - button_width // 2
-    button_y = HEIGHT - 300
-    button_rect = pygame.Rect(button_x, button_y, button_width, button_height)
-
     # Main event loop for the popup
     running = True
     while running:
@@ -274,15 +266,9 @@ def display_instructions():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                if button_rect.collidepoint(event.pos):
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_TAB:
                     running = False  # Exit the popup loop
-
-        # Draw button
-        pygame.draw.rect(popup_surface, (0, 128, 0), button_rect)
-        pygame.draw.rect(popup_surface, (0, 255, 0), button_rect, 3)  # Outline
-        popup_surface.blit(button_text, (button_x + button_width // 2 - button_text.get_width() // 2,
-                                         button_y + button_height // 2 - button_text.get_height() // 2))
 
         # Display the popup surface on the screen
         screen.blit(popup_surface, (0, 0))

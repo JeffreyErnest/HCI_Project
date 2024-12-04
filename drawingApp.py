@@ -121,6 +121,8 @@ def get_color_from_wheel(pos, center):
         color = pygame.Color(0)
         color.hsva = (angle, 100, 100, 100)
         return color.r, color.g, color.b
+    elif distance < (COLOR_WHEEL_RADIUS - 20): # inside of radius
+        return BLACK
     return None
 
 # Detect head tilt
@@ -207,55 +209,54 @@ def draw_exit_button(x, y):
 
 # Display instructions
 def display_instructions():
+    #create separate surface for popup
     popup_surface = pygame.Surface((WIDTH, HEIGHT))
     popup_surface.fill(GREY)
-    font = pygame.font.Font(None, 36)
+
+    #setup fonts
+    font = pygame.font.Font("Jefffont-Regular.ttf", 36)
     title_font = pygame.font.Font(None, 50)
 
+    # Text for the instructions
     title_text = title_font.render("Welcome to ClickCanvas!", True, (0, 0, 0))
     instructions = [
         "Instructions:",
         "; Move your nose or hand to draw on the canvas.",
-        "; Press \"Space\" to start or stop drawing.",
+        "      ; Please try drawing slowly as fast movements may not be caught.",
+        "; Hold \"Space\" to draw. Let go of \"space\" to stop drawing.",
         "; Press \"Enter\" to switch between nose and hand mode.",
-        "; Open your mouth to select a color.",
-        "      ; Tilt right while selecting color to change brush size.",
+        "; Open your mouth to select a color. Select black from center of wheel.",
+        "      ; Tilt right while selecting color to change brush size. Select size from menu.",
         "      ; Tilt left while selecting color to toggle eraser.",
-        "; Tilt your head right to undo, left to redo.",
+        "; Tilt your head right to undo or tilt left to redo. Do NOT open your mouth.",
         "",
-        "Click 'Draw Now!' to start drawing!"
+        "Press TAB to start drawing!"
     ]
 
+     # Render instructions line by line
     text_surfaces = [font.render(line, True, (0, 0, 0)) for line in instructions]
+
+    # Positioning
     title_pos = (WIDTH // 2 - title_text.get_width() // 2, 50)
     text_positions = [(50, 150 + i * 40) for i in range(len(text_surfaces))]
 
+    # Draw all text
     popup_surface.blit(title_text, title_pos)
     for text_surface, pos in zip(text_surfaces, text_positions):
         popup_surface.blit(text_surface, pos)
 
-    button_font = pygame.font.Font(None, 40)
-    button_text = button_font.render("Draw Now!", True, WHITE)
-    button_width, button_height = 200, 60
-    button_x = WIDTH // 2 - button_width // 2
-    button_y = HEIGHT - 300
-    button_rect = pygame.Rect(button_x, button_y, button_width, button_height)
-
+    # Main event loop for the popup
     running = True
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                if button_rect.collidepoint(event.pos):
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_TAB:
                     running = False  # Exit the popup loop
 
-        pygame.draw.rect(popup_surface, (0, 128, 0), button_rect)
-        pygame.draw.rect(popup_surface, (0, 255, 0), button_rect, 3)  # Outline
-        popup_surface.blit(button_text, (button_x + button_width // 2 - button_text.get_width() // 2,
-                                         button_y + button_height // 2 - button_text.get_height() // 2))
-
+        # Display the popup surface on the screen
         screen.blit(popup_surface, (0, 0))
         pygame.display.update()
 
