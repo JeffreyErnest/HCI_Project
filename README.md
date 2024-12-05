@@ -59,6 +59,8 @@ You can install the required packages using pip. Here’s a command to install a
 
 ## File Structure
 - `drawingApp.py`: The main application file containing all the logic for drawing, color selection, and user interaction.
+- `face_landmark.task`: A required file for MediaPipe, which must be in the same folder as `drawingApp.py`.
+- `Jefffont-Regular.ttf`: The font file used for the instruction/help menu, which must also be in the same folder.
 
 ## Acknowledgments
 - Thanks to the developers of OpenCV, Mediapipe, and Pygame for their excellent libraries that made this project possible.
