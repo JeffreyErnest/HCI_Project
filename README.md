@@ -24,12 +24,12 @@ Before running the application, ensure you have the following packages installed
 - Pynput (version 1.7.3)
 
 You can install the required packages using pip. Here’s a command to install all the necessary packages:
-pip install opencv-python
-pip install mediapipe
-pip install pygame
-pip install numpy
-pip install Pillow
-pip install pynput
+- pip install opencv-python
+- pip install mediapipe
+- pip install pygame
+- pip install numpy
+- pip install Pillow
+- pip install pynput
 
 
 ## How to Run the Application
