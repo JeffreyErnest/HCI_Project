@@ -1,5 +1,3 @@
-# HCI_Project
-
 # ClickCanvas
 
 ## Overview
