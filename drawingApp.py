@@ -81,7 +81,7 @@ save_button_height = 50
 save_button_color = (0, 128, 255)
 save_button_hover_color = (0, 100, 200)
 save_button_text_color = (255, 255, 255)
-save_button_font = pygame.font.Font("Jefffont-Regular.ttf", 36)
+save_button_font = pygame.font.Font(None, 36)
 
 # Instruction manual button settings
 manual_button_width = 150
@@ -89,7 +89,7 @@ manual_button_height = 50
 manual_button_color = (0, 128, 255)
 manual_button_hover_color = (0, 100, 200)
 manual_button_text_color = (255, 255, 255)
-manual_button_font = pygame.font.Font("Jefffont-Regular.ttf", 36)
+manual_button_font = pygame.font.Font(None, 36)
 
 # Check if mouth is open
 def is_mouth_open(landmarks):
@@ -236,23 +236,23 @@ def display_manual():
     popup_surface.fill(GREY)
 
     #setup fonts
-    font = pygame.font.Font("Jefffont-Regular.ttf", 36)
+    font = pygame.font.Font(None, 36)
     title_font = pygame.font.Font(None, 50)
 
     # Text for the instructions
     title_text = title_font.render("Welcome to ClickCanvas!", True, (0, 0, 0))
     instructions = [
         "Instructions:",
-        "; Move your nose or hand to draw on the canvas.",
-        "      ; Please try drawing slowly as fast movements may not be caught.",
-        "; Hold \"Space\" to draw. Let go of \"space\" to stop drawing.",
-        "; Press \"Enter\" to switch between nose and hand mode.",
-        "; Open your mouth to select a color. Select black from center of wheel.",
-        "      ; Tilt right while selecting color to change brush size. Select size from menu.",
-        "      ; Tilt left while selecting color to toggle eraser.",
-        "; Tilt your head left to undo or tilt right to redo. Do NOT open your mouth.",
-        "; To save, hover over the 'save' button in the bottom right and hit \"space\".",
-        "; To quit, hover over the 'quit' button in the bottom left and hit \"space\".",
+        "- Move your nose or hand to draw on the canvas.",
+        "      - Please try drawing slowly as fast movements may not be caught.",
+        "- Hold \"Space\" to draw. Let go of \"space\" to stop drawing.",
+        "- Press \"Enter\" to switch between nose and hand mode.",
+        "- Open your mouth to select a color. Select black from center of wheel.",
+        "      - Tilt right while selecting color to change brush size. Select size from menu.",
+        "      - Tilt left while selecting color to toggle eraser.",
+        "- Tilt your head left to undo or tilt right to redo. Do NOT open your mouth.",
+        "- To save, hover over the 'save' button in the bottom right and hit \"space\".",
+        "- To quit, hover over the 'quit' button in the bottom left and hit \"space\".",
         "",
         "Press TAB to start drawing!"
     ]
