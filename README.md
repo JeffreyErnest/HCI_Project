@@ -53,10 +53,11 @@ You can install the required packages using pip. Here’s a command to install a
 - Hold the "Space" key to draw. Release to stop drawing.
 - Press "Enter" to switch between nose and hand modes.
 - Open your mouth to select a color from the color wheel. (open mouth again to close and confirm selection)
-- Tilt your head to adjust brush size or toggle eraser mode.
+   - Tilt your head (right) to adjust brush size or toggle eraser mode (left).
 - To save your drawing, hover over the 'Save' button and press "Space".
 - To quit, hover over the 'Exit' button and press "Space".
 - Press "TAB" to view the instruction manual.
+- Undo (left) and re-do (right) tilt head while mouth is closed.
 
 ## File Structure
 - `drawingApp.py`: The main application file containing all the logic for drawing, color selection, and user interaction.
