@@ -386,18 +386,18 @@ try:
                         shiftY = 1
                         nX = (2 * (math.exp(abs(noseX) - 0.5)) - 1)
                         nY = (2 * (math.exp(abs(noseY) - 0.5)) - 1)
-                        if noseX < 0.5:
+                        if noseX > 0.5:
                             shiftX = -1
-                        if noseY < 0.5:
+                        if noseY > 0.5:
                             shiftY = -1
-                        nose_position = ((WIDTH / 2) + shiftX * (nX * (WIDTH / 2)), (HEIGHT / 2) + shiftY * (nY * (HEIGHT * 2)))
+                        nose_position = ((WIDTH / 2) + shiftX * (nX * (WIDTH / 2)), (HEIGHT / 2) + shiftY * (nY * (HEIGHT / 2)))
                         # nose_position = ((2 * (math.exp(abs(nose_landmark.x - 0.5)) - 1) * WIDTH / nose_landmark.x), (2 * (math.exp(abs(nose_landmark.y - 0.5)) - 1)) * HEIGHT)
                         # nose_position = (WIDTH - (2 * abs(nose_landmark.x - 0.5)**2) * WIDTH * 2, (2 * abs(nose_landmark.y - 0.5)**2) * HEIGHT * 2)
-                        # print(2 * (math.exp(abs(nose_landmark.x - 0.5)) - 1))
+                        print(2 * (math.exp(abs(nose_landmark.x - 0.5)) - 1))
                         # print(nose_landmark.x)
                         print(nose_position)
-                        print(nX)
-                        print(nY)
+                        # print(nX)
+                        # print(nY)
                         
                         
                         # Always draw cursor dot
