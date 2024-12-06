@@ -46,16 +46,23 @@ You can install the required packages using pip. Here’s a command to install a
 
 4. Follow the on-screen instructions to start drawing.
 
-## Instructions for Use
+## Instructions for Use:
 - Move your nose or hand to draw on the canvas.
-- Hold the "Space" key to draw. Release to stop drawing.
-- Press "Enter" to switch between nose and hand modes.
-- Open your mouth to select a color from the color wheel. (open mouth again to close and confirm selection)
-   - Tilt your head (right) to adjust brush size or toggle eraser mode (left).
-- To save your drawing, hover over the 'Save' button and press "Space".
-- To quit, hover over the 'Exit' button and press "Space".
-- Press "TAB" to view the instruction manual.
-- Undo (left) and re-do (right) tilt head while mouth is closed.
+      - Please try drawing slowly as fast movements may not be caught.
+- Hold "Space" to draw. Let go of "space" to stop drawing.
+- Press "Enter" to switch between nose and hand mode.
+- Open and close your mouth to select a color. (black is selected from the center of the wheel.)
+      - To confirm your selection, open and close your mouth again.
+      - Tilt your head right while selecting color to change brush size. Select size from the menu.
+      - Tilt your head left while selecting color to toggle eraser. To get
+        out of the erase, you have to close and open your mouth twice.
+- Tilt your head left to undo or tilt right to redo while your mouth is closed.
+      - NOTE: You have to tilt your head pretty far; this ensures you don't accidentally undo/redo.
+- To save, hover over the 'save' button in the bottom right and hit "space."
+- To quit, hover over the 'quit' button in the bottom left and hit "space."
+- To re-open the instructions, hover over the 'How To' button and hit "space."
+
+Press TAB to start drawing! (NOTE: that the program might take a second to boot)
 
 ## File Structure
 - `drawingApp.py`: The main application file containing all the logic for drawing, color selection, and user interaction.
