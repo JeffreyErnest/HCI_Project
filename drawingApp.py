@@ -141,9 +141,9 @@ def get_head_tilt(landmarks):
     dy = right_eye.y - left_eye.y
     angle = math.degrees(math.atan2(dy, dx))
     
-    if angle < -15:  # Left tilt
+    if angle < -35:  # Left tilt
         return -1
-    elif angle > 15:  # Right tilt
+    elif angle > 35:  # Right tilt
         return 1
     return 0
 
@@ -247,14 +247,18 @@ def display_manual():
         "      - Please try drawing slowly as fast movements may not be caught.",
         "- Hold \"Space\" to draw. Let go of \"space\" to stop drawing.",
         "- Press \"Enter\" to switch between nose and hand mode.",
-        "- Open your mouth to select a color. Select black from center of wheel.",
-        "      - Tilt right while selecting color to change brush size. Select size from menu.",
-        "      - Tilt left while selecting color to toggle eraser.",
-        "- Tilt your head left to undo or tilt right to redo. Do NOT open your mouth.",
+        "- Open and close your mouth to select a color. (black is selected from the center of wheel.)",
+        "      - To confirm your selection open and close your mouth again",
+        "      - Tilt your head right while selecting color to change brush size. Select size from menu.",
+        "      - Tilt your head left while selecting color to toggle eraser. To get",
+        "        out of the erase you have to close and open your mouth twice.",
+        "- Tilt your head left to undo or tilt right to redo. While mouth is closed.",
+        "      - NOTE: You have to tilt your head pretty far this insures you don't accidently undo / redo.",
         "- To save, hover over the 'save' button in the bottom right and hit \"space\".",
         "- To quit, hover over the 'quit' button in the bottom left and hit \"space\".",
+        "- To re-open the instructions, hover over the 'How To' button and hit \"space\".",
         "",
-        "Press TAB to start drawing!"
+        "Press TAB to start drawing! (NOTE: that the program might take a second to boot)"
     ]
 
      # Render instructions line by line
